@@ -1,0 +1,20 @@
+spring.application.name=optl-monitor
+
+---
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        greeting: true
+        http:
+          server:
+            requests: true
+  tracing:
+    sampling:
+      probability: 1.0

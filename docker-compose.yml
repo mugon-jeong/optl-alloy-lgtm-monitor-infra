@@ -1,0 +1,58 @@
+version: "3"
+services:
+    web:
+      image: optl-monitor:latest
+      ports:
+          - "8080:8080"
+    alloy:
+      image: grafana/alloy:latest
+      container_name: alloy
+      volumes:
+        - ./alloy/config.alloy:/etc/alloy/config.alloy
+      ports:
+        - "12345:12345"
+        - "4317"
+        - "4318"
+      command: >
+        run
+        --server.http.listen-addr=0.0.0.0:12345
+        --storage.path=/var/lib/alloy/data
+        /etc/alloy/config.alloy
+    loki:
+      container_name: loki
+      image: grafana/loki:latest
+      command: -config.file=/etc/loki/local-config.yaml
+      restart: always
+      ports:
+        - "3100"
+    prometheus:
+      container_name: prometheus
+      image: prom/prometheus
+      volumes:
+        - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      command:
+        - --web.enable-remote-write-receiver
+#        - --enable-feature=otlp-write-receiver
+        - --enable-feature=exemplar-storage
+#        - --enable-feature=native-histograms
+#        - --storage.tsdb.path=/data/prometheus
+        - --config.file=/etc/prometheus/prometheus.yml
+      restart: always
+      ports:
+        - '9090:9090'
+    tempo:
+      container_name: tempo
+      image: grafana/tempo:latest
+      command: [ "-config.file=/etc/tempo.yml" ]
+      volumes:
+        - ./tempo/tempo.yml:/etc/tempo.yml
+      restart: always
+      ports:
+        - "4317"  # otlp grpc
+        - "3200"  # tempo as grafana datasource
+    grafana:
+      container_name: grafana
+      image: grafana/grafana
+      restart: always
+      ports:
+        - "3000:3000"
