@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.tasks.Copy
 
 plugins {
     id("org.springframework.boot") version "3.3.0"
@@ -6,7 +7,6 @@ plugins {
     kotlin("jvm") version "1.9.24"
     kotlin("plugin.spring") version "1.9.24"
     id("com.google.cloud.tools.jib") version "3.4.3"
-    id("com.ryandens.javaagent-jib") version "0.5.1" // jvmflags에 자동으로 java agent 추가
 }
 
 group = "com.example"
@@ -20,15 +20,51 @@ repositories {
     mavenCentral()
 }
 
+tasks.withType<JavaExec> {
+    jvmArgs("--add-exports", "jdk.management.agent/jdk.internal.agent.resources=ALL-UNNAMED")
+}
+
+configurations {
+    create("agent")
+}
+
 dependencies {
-    javaagent(libs.opentelemetry.javaagent)
+    "agent"("io.opentelemetry.javaagent:opentelemetry-javaagent:2.4.0")
     implementation("io.github.oshai:kotlin-logging-jvm:6.0.9")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    runtimeOnly("org.postgresql:postgresql")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    implementation("io.opentelemetry:opentelemetry-api:1.39.0")
+    implementation("io.micrometer:micrometer-registry-prometheus:1.12.6")
+    implementation("io.micrometer:micrometer-tracing-bridge-brave") {
+        // 프로젝트에서 Zipkin을 사용하지 않는 경우
+        exclude(group = "io.zipkin.reporter2")
+    }
+}
+
+dependencyManagement {
+    imports {
+        mavenBom("io.opentelemetry:opentelemetry-bom:1.36.0")
+        mavenBom("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:2.2.0-alpha")
+    }
+}
+
+
+tasks.register<Copy>("copyAgent") {
+    from(configurations.getByName("agent")) {
+        rename("opentelemetry-javaagent-.*\\.jar", "opentelemetry-javaagent.jar")
+    }
+    into(layout.projectDirectory.dir("src/main/jib/agent"))
+}
+
+tasks.named<Jar>("bootJar") {
+    dependsOn(tasks.named("copyAgent"))
+    archiveFileName.set("app.jar")
 }
 
 kotlin {
@@ -40,6 +76,7 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    jvmArgs("--add-exports", "jdk.management.agent/jdk.internal.agent.resources=ALL-UNNAMED")
 }
 
 jib {
@@ -62,12 +99,7 @@ jib {
             listOf(
                 "-Xms1024m",
                 "-Xmx1024m",
-                "-Dotel.metric.export.interval=500",
-                "-Dotel.bsp.schedule.delay=500",
-                "-Dotel.service.name=optl-service",
-                "-Dotel.exporter.otlp.protocol=grpc",
-                "-Dotel.exporter.otlp.endpoint=http://alloy:4317",
-                "-Dotel.logs.exporter=otlp"
+                "-javaagent:/agent/opentelemetry-javaagent.jar"
             )
         setAllowInsecureRegistries(true)
     }

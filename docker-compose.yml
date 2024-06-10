@@ -4,6 +4,17 @@ services:
       image: optl-monitor:latest
       ports:
           - "8080:8080"
+      environment:
+        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/coupon
+        SPRING_DATASOURCE_USERNAME: myuser
+        SPRING_DATASOURCE_PASSWORD: secret
+        OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4317
+        OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+        OTEL_METRIC_EXPORT_INTERVAL: 500
+        OTEL_BSP_SCHEDULE_DELAY: 500
+        OTEL_SERVICE_NAME: "order-service"
+        OTEL_RESOURCE_ATTRIBUTES: "service.name=order-service,env=dev,compose_service=app-order"
+        OTEL_INSTRUMENTATION_MICROMETER_ENABLED: true
     alloy:
       image: grafana/alloy:latest
       container_name: alloy
@@ -32,9 +43,9 @@ services:
         - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       command:
         - --web.enable-remote-write-receiver
-#        - --enable-feature=otlp-write-receiver
+        - --enable-feature=otlp-write-receiver
         - --enable-feature=exemplar-storage
-#        - --enable-feature=native-histograms
+        - --enable-feature=native-histograms
 #        - --storage.tsdb.path=/data/prometheus
         - --config.file=/etc/prometheus/prometheus.yml
       restart: always
@@ -56,3 +67,11 @@ services:
       restart: always
       ports:
         - "3000:3000"
+    postgres:
+      image: 'postgres:latest'
+      environment:
+        - 'POSTGRES_DB=coupon'
+        - 'POSTGRES_USER=myuser'
+        - 'POSTGRES_PASSWORD=secret'
+      ports:
+        - '5432:5432'

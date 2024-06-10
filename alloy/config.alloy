@@ -1,8 +1,3 @@
-logging {
-  level  = "info"
-  format = "logfmt"
-}
-
 otelcol.receiver.otlp "default" {
   grpc {
     endpoint = "0.0.0.0:4317"
@@ -22,8 +17,26 @@ otelcol.receiver.otlp "default" {
 otelcol.processor.batch "default" {
   output {
     metrics = [otelcol.exporter.prometheus.default.input]
-    logs    = [otelcol.exporter.loki.default.input]
+    logs    = [otelcol.processor.attributes.default.input]
     traces  = [otelcol.exporter.otlp.default.input]
+  }
+}
+
+otelcol.processor.attributes "default" {
+  action {
+    key = "loki.attribute.labels"
+    action = "insert"
+    value = "event.domain, event.name"
+  }
+
+  action {
+    key = "loki.resource.labels"
+    action = "insert"
+    value = "service.name, service.namespace, compose_service"
+  }
+
+  output {
+    logs = [otelcol.exporter.loki.default.input]
   }
 }
 
@@ -40,6 +53,10 @@ loki.write "default" {
 otelcol.exporter.otlp "default" {
   client {
     endpoint = "tempo:4317"
+    tls {
+      insecure = true
+      insecure_skip_verify = true
+    }
   }
 }
 
