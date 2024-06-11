@@ -1,6 +1,7 @@
+# Grafana로의 HTTP를 통한 결과 스트리밍을 활성화합니다.
+stream_over_http_enabled: true
 server:
   http_listen_port: 3200
-  grpc_listen_port: 9096
 
 distributor:
   receivers:
@@ -9,13 +10,34 @@ distributor:
         grpc:
         http:
 
+# ingester는 distributor로부터 데이터를 수신하고 이를 인덱스와 블록으로 처리합니다.
+ingester:
+  trace_idle_period: 10s       # 스팬이 도착하지 않으면 트레이스를 완료된 것으로 간주하고 플러시할 시간입니다. (기본값: 10초)
+  max_block_bytes: 1_000_000   # 헤드 블록이 이 크기에 도달하면 잘라냅니다. (기본값: 1,000,000 바이트)
+  max_block_duration: 5m       # 또는 이 시간이 지나면 블록을 자릅니다. (기본값: 5분)
+
+
+# compactor 블록은 TSDB 블록을 압축하는 역할을 합니다.
+compactor:
+  compaction:
+    compaction_window: 1h              # 이 시간 창 내의 블록이 함께 압축됩니다. (기본값: 1시간)
+    max_block_bytes: 100_000_000       # 압축된 블록의 최대 크기입니다. (기본값: 100,000,000 바이트)
+    block_retention: 1h                # 블록을 유지하는 시간입니다. 기본값은 14일이지만, 이 데모 시스템은 단기간 유지됩니다. (기본값: 14일)
+    compacted_block_retention: 10m     # 다른 곳에 저장된 압축된 블록을 유지하는 시간입니다. (기본값: 10분)
+
+# TSDB 블록을 저장할 위치를 결정하는 설정 블록입니다.
 storage:
   trace:
-    backend: local  # 로컬 스토리지 백엔드 사용
+    backend: local                     # 블록 저장소로 로컬 파일 시스템을 사용합니다. 프로덕션 시스템에는 권장되지 않습니다. (기본값: local)
+    block:
+      bloom_filter_false_positive: .05 # 블룸 필터의 false positive 비율입니다. 낮은 값은 더 큰 필터를 생성하지만 false positive가 줄어듭니다. (기본값: 0.05)
     wal:
-      path: /tmp/tempo/wal  # WAL(Write-Ahead Log)을 저장할 경로
+      path: /tmp/tempo/wal             # 로컬에 WAL을 저장할 디렉터리입니다. (기본값: /tmp/tempo/wal)
     local:
-      path: /tmp/tempo/blocks  # 트레이스 블록을 저장할 경로
+      path: /tmp/tempo/blocks          # TSDB 블록을 저장할 디렉터리입니다. (기본값: /tmp/tempo/blocks)
+    pool:
+      max_workers: 100                 # 워커 풀은 백엔드 오브젝트 스토어에 대한 병렬 요청 수를 결정합니다. (기본값: 100)
+      queue_depth: 10000               # 쿼리 큐 작업의 최대 깊이입니다. 각 블록 검색에 작업이 필요합니다. (기본값: 10000)
 
 metrics_generator:
   # Ring configuration
@@ -30,24 +52,24 @@ metrics_generator:
       max_items: 10000  # 저장소에 저장될 엣지의 최대 개수 (기본값: 10000)
       workers: 10  # 엣지를 처리할 워커 수 (기본값: 10)
       histogram_buckets: [0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8]  # 지연 시간 히스토그램 버킷 (기본값)
-      dimensions: []  # 추가적인 차원을 메트릭에 추가 (기본값: 빈 배열)
+      dimensions: [http.method, http.target, http.status_code, service.version]  # 추가적인 차원을 메트릭에 추가
       enable_client_server_prefix: false  # 클라이언트 및 서버 접두사를 추가할지 여부 (기본값: false)
       enable_messaging_system_latency_histogram: false  # 메시징 시스템의 지연 시간 히스토그램을 추가할지 여부 (기본값: false)
       span_multiplier_key: ""  # 스팬 메트릭을 곱할 속성 키 (기본값: 빈 문자열)
       enable_virtual_node_label: false  # 가상 노드 레이블을 추가할지 여부 (기본값: false)
 
-    span_metrics:
-      histogram_buckets: [0.002, 0.004, 0.008, 0.016, 0.032, 0.064, 0.128, 0.256, 0.512, 1.02, 2.05, 4.10]  # 지연 시간 히스토그램 버킷
+    span_metrics: # 스팬 메트릭은 스팬 유형, 지속 시간, 이름 및 서비스 기반으로 메트릭을 생성합니다.
+      histogram_buckets: [ 0.002, 0.004, 0.008, 0.016, 0.032, 0.064, 0.128, 0.256, 0.512, 1.02, 2.05, 4.10 ]  # 지연 시간 히스토그램 버킷
       intrinsic_dimensions:
         service: true  # 서비스 이름을 메트릭에 추가할지 여부 (기본값: true)
         span_name: true  # 스팬 이름을 메트릭에 추가할지 여부 (기본값: true)
         span_kind: true  # 스팬 종류를 메트릭에 추가할지 여부 (기본값: true)
         status_code: true  # 상태 코드를 메트릭에 추가할지 여부 (기본값: true)
         status_message: false  # 상태 메시지를 메트릭에 추가할지 여부 (기본값: false)
-      dimensions: [service_name, span_name, status_code]  # 추가적인 차원을 메트릭에 추가
-      dimension_mappings: []  # 차원 매핑을 통해 사용자 정의 라벨을 추가 (기본값: 빈 배열)
+      dimensions: [ service_name, span_name, status_code, http.method, http.target, http.status_code, service.version ]  # 추가적인 차원을 메트릭에 추가
+      dimension_mappings: [ ]  # 차원 매핑을 통해 사용자 정의 라벨을 추가 (기본값: 빈 배열)
       enable_target_info: false  # traces_target_info 메트릭을 활성화할지 여부 (기본값: false)
-      target_info_excluded_dimensions: []  # traces_target_info 메트릭에서 제외할 라벨 (기본값: 빈 배열)
+      target_info_excluded_dimensions: [ ]  # traces_target_info 메트릭에서 제외할 라벨 (기본값: 빈 배열)
       span_multiplier_key: ""  # 스팬 메트릭을 곱할 속성 키 (기본값: 빈 문자열)
 
   traces_storage:
@@ -56,8 +78,8 @@ metrics_generator:
   storage:
     path: /tmp/tempo/generator/wal  # WAL을 저장할 경로
     remote_write:
-      - url: http://prometheus:9090/api/v1/write  # Prometheus에 데이터를 쓰기 위한 URL
-        send_exemplars: true  # 예시 데이터를 전송할지 여부 (기본값: true)
+      - url: http://mimir:9009/api/v1/push  # Prometheus에 데이터를 쓰기 위한 URL
+        send_exemplars: true  # exemplars 데이터를 전송할지 여부 (기본값: true)
 
   # Registry configuration
   registry:

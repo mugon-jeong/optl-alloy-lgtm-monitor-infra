@@ -14,7 +14,7 @@ management:
         hikaricp: false
         system: false
         jdbc: false
-        http: false
+        http: true
         logback: true
       distribution:
         percentiles-histogram:

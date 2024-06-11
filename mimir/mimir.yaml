@@ -1,0 +1,80 @@
+multitenancy_enabled: false
+ingester:
+  ring:
+    # Only run one instance of the ingesters.
+    # Note: It is highly recommended to run more than one ingester in production, the default is an RF of 3.
+    replication_factor: 1
+server:
+  http_listen_port: 9009
+
+  # Configure the server to allow messages up to 100MB.
+  grpc_server_max_recv_msg_size: 104857600
+  grpc_server_max_send_msg_size: 104857600
+  grpc_server_max_concurrent_streams: 1000
+
+ingester_client:
+  grpc_client_config:
+    grpc_compression: gzip
+    max_recv_msg_size: 104857600
+    max_send_msg_size: 104857600
+
+common:
+  storage:
+    backend: s3
+    s3:
+      endpoint: 172.30.1.114:9123
+      access_key_id: xUXmiT4jfl8UBy6YRh43
+      secret_access_key: x2Xr6p4dVKoH61CBjpZiIe8NcIAaYOLWO6cZj5uj
+      insecure: true
+
+blocks_storage:
+  s3:
+    bucket_name: mimir-blocks
+
+alertmanager_storage:
+  s3:
+    bucket_name: mimir-alertmanager
+
+ruler_storage:
+  s3:
+    bucket_name: mimir-ruler
+
+limits:
+  # 테넌트별 블록 보존 기간, 보존 기간이 지난 데이터는 삭제됨
+  # 기본값: 0s (비활성화)
+  compactor_blocks_retention_period: 1y
+
+  # 보존 기간이 지난 데이터를 쿼리하지 않도록 하기 위한 쿼리 제한 기간
+  # 기본값: 0s (비활성화)
+  # 30일 이전의 데이터까지만 조회 가능
+  max_query_lookback: 30d
+  # A maximum of 100000 exemplars in memory at any one time.
+  # This setting enables exemplar processing and storage.
+  max_global_exemplars_per_user: 100000
+  ingestion_rate: 30000
+  max_label_names_per_series: 100
+  # 허용되는 레이블 값의 최대 길이, 메트릭 이름에도 적용됨
+  # 기본값: 2048
+  max_label_value_length: 4096
+compactor:
+  block_ranges: ["2h", "12h", "24h"] # 압축 시간 범위 (기본값: ["2h", "12h", "24h"])
+  block_sync_concurrency: 8 # 블록 동기화 시 사용하는 Go 루틴 수 (기본값: 8)
+  meta_sync_concurrency: 20 # 메타 파일 동기화 시 사용하는 Go 루틴 수 (기본값: 20)
+  data_dir: "./data-compactor/" # 압축 중 임시 블록 저장 디렉토리 (기본값: "./data-compactor/")
+  compaction_interval: 1h # 압축 실행 주기 (기본값: 1h)
+  compaction_retries: 3 # 압축 실패 시 재시도 횟수 (기본값: 3)
+  compaction_concurrency: 1 # 동시에 실행될 최대 압축 작업 수 (기본값: 1)
+  first_level_compaction_wait_period: 25m # 첫 번째 레벨 블록 압축 대기 시간 (기본값: 25m)
+  cleanup_interval: 15m # 블록 정리 및 유지보수 실행 주기 (기본값: 15m)
+  cleanup_concurrency: 20 # 블록 정리 및 유지보수 작업의 동시 실행 수 (기본값: 20)
+  deletion_delay: 12h # 삭제 표시된 블록을 실제로 삭제하기 전 대기 시간 (기본값: 12h)
+  tenant_cleanup_delay: 6h # 테넌트 삭제 후 최종 정리까지의 대기 시간 (기본값: 6h)
+  max_compaction_time: 1h # 단일 테넌트에 대한 최대 압축 시간 (기본값: 1h)
+  no_blocks_file_cleanup_enabled: false # 블록이 없을 때 파일 정리 여부 (기본값: false)
+  max_opening_blocks_concurrency: 1 # 압축 전 블록 열기에 사용할 최대 Go 루틴 수 (기본값: 1)
+  max_closing_blocks_concurrency: 1 # 압축 후 블록 닫기에 사용할 최대 Go 루틴 수 (기본값: 1)
+  symbols_flushers_concurrency: 1 # 심볼 플러셔의 동시 실행 수 (기본값: 1)
+  max_block_upload_validation_concurrency: 1 # 업로드된 블록 검증의 동시 실행 수 (기본값: 1)
+  enabled_tenants: "" # 압축을 허용할 테넌트 목록 (기본값: "")
+  disabled_tenants: "" # 압축을 허용하지 않을 테넌트 목록 (기본값: "")
+  compaction_jobs_order: "smallest-range-oldest-blocks-first" # 압축 작업 실행 순서 (기본값: "smallest-range-oldest-blocks-first")

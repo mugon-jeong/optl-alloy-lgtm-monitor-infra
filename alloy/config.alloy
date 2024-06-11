@@ -79,11 +79,17 @@ otelcol.exporter.otlp "default" {
 }
 
 otelcol.exporter.prometheus "default" {
-	forward_to = [prometheus.remote_write.default.receiver]
+	forward_to = [prometheus.remote_write.mimir.receiver]
 }
 
 prometheus.remote_write "default" {
 	endpoint {
 		url = "http://prometheus:9090/api/v1/write"
 	}
+}
+
+prometheus.remote_write "mimir" {
+  endpoint {
+    url = "http://mimir:9009/api/v1/push"
+  }
 }

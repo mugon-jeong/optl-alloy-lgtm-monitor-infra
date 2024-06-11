@@ -45,27 +45,26 @@ services:
         --storage.path=/var/lib/alloy/data
         /etc/alloy/config.alloy
     loki:
-      container_name: loki
-      image: grafana/loki:latest
-      command: -config.file=/etc/loki/local-config.yaml
-      restart: always
+      image: grafana/loki:3.0.0
+      command: [ "--pattern-ingester.enabled=true", "-config.file=/etc/loki/loki.yaml" ]
       ports:
-        - "3100"
-    prometheus:
-      container_name: prometheus
-      image: prom/prometheus
+        - "3100:3100"
       volumes:
-        - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      command:
-        - --web.enable-remote-write-receiver
-        - --enable-feature=otlp-write-receiver
-        - --enable-feature=exemplar-storage
-        - --enable-feature=native-histograms
-#        - --storage.tsdb.path=/data/prometheus
-        - --config.file=/etc/prometheus/prometheus.yml
-      restart: always
-      ports:
-        - '9090:9090'
+        - "./loki/loki.yaml:/etc/loki/loki.yaml"
+#    prometheus:
+#      container_name: prometheus
+#      image: prom/prometheus
+#      volumes:
+#        - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+#      command:
+#        - --web.enable-remote-write-receiver
+#        - --enable-feature=otlp-write-receiver
+#        - --enable-feature=exemplar-storage
+#        - --enable-feature=native-histograms
+#        - --config.file=/etc/prometheus/prometheus.yml
+#      restart: always
+#      ports:
+#        - '9090:9090'
     tempo:
       container_name: tempo
       image: grafana/tempo:latest
@@ -90,3 +89,12 @@ services:
         - 'POSTGRES_PASSWORD=secret'
       ports:
         - '5432:5432'
+    mimir:
+      image: grafana/mimir:latest
+      command:
+        - -config.file=/etc/mimir.yaml
+      ports:
+        - "9009:9009"
+      volumes:
+        - ./mimir/mimir.yaml:/etc/mimir.yaml
+        - ./mimir/data:/data
