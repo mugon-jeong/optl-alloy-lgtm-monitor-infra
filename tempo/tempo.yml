@@ -11,23 +11,67 @@ distributor:
 
 storage:
   trace:
-    backend: local
+    backend: local  # 로컬 스토리지 백엔드 사용
     wal:
-      path: /tmp/tempo/wal
+      path: /tmp/tempo/wal  # WAL(Write-Ahead Log)을 저장할 경로
     local:
-      path: /tmp/tempo/blocks
+      path: /tmp/tempo/blocks  # 트레이스 블록을 저장할 경로
 
 metrics_generator:
+  # Ring configuration
+  ring:
+    kvstore:
+      store: memberlist  # ring의 키-값 저장소로 memberlist 사용 (기본값)
+
+  # Processor-specific configuration
   processor:
-    local_blocks:
-      filter_server_spans: false
+    service_graphs:
+      wait: 10s  # 엣지(edge)가 완료될 때까지 대기하는 시간 (기본값: 10초)
+      max_items: 10000  # 저장소에 저장될 엣지의 최대 개수 (기본값: 10000)
+      workers: 10  # 엣지를 처리할 워커 수 (기본값: 10)
+      histogram_buckets: [0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8]  # 지연 시간 히스토그램 버킷 (기본값)
+      dimensions: []  # 추가적인 차원을 메트릭에 추가 (기본값: 빈 배열)
+      enable_client_server_prefix: false  # 클라이언트 및 서버 접두사를 추가할지 여부 (기본값: false)
+      enable_messaging_system_latency_histogram: false  # 메시징 시스템의 지연 시간 히스토그램을 추가할지 여부 (기본값: false)
+      span_multiplier_key: ""  # 스팬 메트릭을 곱할 속성 키 (기본값: 빈 문자열)
+      enable_virtual_node_label: false  # 가상 노드 레이블을 추가할지 여부 (기본값: false)
+
+    span_metrics:
+      histogram_buckets: [0.002, 0.004, 0.008, 0.016, 0.032, 0.064, 0.128, 0.256, 0.512, 1.02, 2.05, 4.10]  # 지연 시간 히스토그램 버킷
+      intrinsic_dimensions:
+        service: true  # 서비스 이름을 메트릭에 추가할지 여부 (기본값: true)
+        span_name: true  # 스팬 이름을 메트릭에 추가할지 여부 (기본값: true)
+        span_kind: true  # 스팬 종류를 메트릭에 추가할지 여부 (기본값: true)
+        status_code: true  # 상태 코드를 메트릭에 추가할지 여부 (기본값: true)
+        status_message: false  # 상태 메시지를 메트릭에 추가할지 여부 (기본값: false)
+      dimensions: [service_name, span_name, status_code]  # 추가적인 차원을 메트릭에 추가
+      dimension_mappings: []  # 차원 매핑을 통해 사용자 정의 라벨을 추가 (기본값: 빈 배열)
+      enable_target_info: false  # traces_target_info 메트릭을 활성화할지 여부 (기본값: false)
+      target_info_excluded_dimensions: []  # traces_target_info 메트릭에서 제외할 라벨 (기본값: 빈 배열)
+      span_multiplier_key: ""  # 스팬 메트릭을 곱할 속성 키 (기본값: 빈 문자열)
+
   traces_storage:
-    path: /tmp/tempo/generator/traces
+    path: /tmp/tempo/generator/traces  # 트레이스를 저장할 경로
+
   storage:
-    path: /tmp/tempo/generator/wal
+    path: /tmp/tempo/generator/wal  # WAL을 저장할 경로
     remote_write:
-      - url: http://prometheus:9090/api/v1/write
-        send_exemplars: true
+      - url: http://prometheus:9090/api/v1/write  # Prometheus에 데이터를 쓰기 위한 URL
+        send_exemplars: true  # 예시 데이터를 전송할지 여부 (기본값: true)
+
+  # Registry configuration
+  registry:
+    collection_interval: 15s  # 메트릭을 수집하고 원격으로 쓰는 간격 (기본값: 15초)
+    stale_duration: 15m  # 메트릭 시리즈가 오래되었다고 간주되는 시간 (기본값: 15분)
+    external_labels:
+      source: tempo
+      cluster: docker-compose
+    inject_tenant_id_as: ""  # 테넌트 ID를 라벨로 추가할지 여부 (기본값: 빈 문자열)
+    max_label_name_length: 1024  # 라벨 이름의 최대 길이 (기본값: 1024)
+    max_label_value_length: 2048  # 라벨 값의 최대 길이 (기본값: 2048)
+
+  # 이 옵션은 특정 시간 범위 내에서 끝나는 스팬만 메트릭 생성에 고려합니다.
+  metrics_ingestion_time_range_slack: 30s  # 메트릭 수집 시간 범위 슬랙 (기본값: 30초)
 
 overrides:
-  metrics_generator_processors: [service-graphs, local-blocks]
+  metrics_generator_processors: [service-graphs, local-blocks, span-metrics]  # 활성화할 메트릭 생성 프로세서

@@ -24,6 +24,24 @@ otelcol.processor.batch "default" {
 
 otelcol.processor.attributes "default" {
   action {
+    key = "service_name"
+    action = "insert"
+    value = "service.name"
+  }
+
+  action {
+      key = "service_namespace"
+      action = "insert"
+      value = "service.namespace"
+  }
+
+  action {
+      key = "compose_service"
+      action = "insert"
+      value = "compose_service"
+  }
+
+  action {
     key = "loki.attribute.labels"
     action = "insert"
     value = "event.domain, event.name"

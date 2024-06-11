@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service
 import java.time.LocalDateTime
 import java.util.function.Supplier
 
-private val logger = KotlinLogging.logger { }
+val logger = KotlinLogging.logger { }
 
 @Service
 class CouponService(private val couponRepository: CouponRepository) {
