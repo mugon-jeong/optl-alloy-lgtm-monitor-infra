@@ -82,10 +82,13 @@ otelcol.exporter.prometheus "default" {
 	forward_to = [prometheus.remote_write.mimir.receiver]
 }
 
-prometheus.remote_write "default" {
-	endpoint {
-		url = "http://prometheus:9090/api/v1/write"
-	}
+prometheus.scrape "postgresql" {
+  targets = [
+    { "__address__" = "postgres-exporter:9187" },
+  ]
+
+  forward_to = [prometheus.remote_write.mimir.receiver]
+  job_name = "postgres_exporter"
 }
 
 prometheus.remote_write "mimir" {
