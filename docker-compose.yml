@@ -114,7 +114,6 @@ services:
         - POSTGRESQL_REPLICATION_PASSWORD=repl_password
         - POSTGRESQL_USERNAME=postgres # 다른 사용자명을 사용하면 superuser 사용이 힘들어짐
         - POSTGRESQL_PASSWORD=secret
-        - POSTGRESQL_DATABASE=coupon
     postgresql-standby2:
       image: docker.io/bitnami/postgresql:16
       ports:
