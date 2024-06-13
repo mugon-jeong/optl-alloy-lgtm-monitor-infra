@@ -30,8 +30,15 @@ configurations {
 
 dependencies {
     "agent"("io.opentelemetry.javaagent:opentelemetry-javaagent:2.4.0")
-    implementation("io.github.oshai:kotlin-logging-jvm:6.0.9")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("io.opentelemetry:opentelemetry-api")
+    implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation("io.micrometer:micrometer-tracing-bridge-brave") {
+        // 프로젝트에서 Zipkin을 사용하지 않는 경우
+        exclude(group = "io.zipkin.reporter2")
+    }
+
+    implementation("io.github.oshai:kotlin-logging-jvm:6.0.9")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
@@ -39,18 +46,13 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    implementation("io.opentelemetry:opentelemetry-api:1.39.0")
-    implementation("io.micrometer:micrometer-registry-prometheus:1.12.6")
-    implementation("io.micrometer:micrometer-tracing-bridge-brave") {
-        // 프로젝트에서 Zipkin을 사용하지 않는 경우
-        exclude(group = "io.zipkin.reporter2")
-    }
 }
 
 dependencyManagement {
     imports {
-        mavenBom("io.opentelemetry:opentelemetry-bom:1.36.0")
-        mavenBom("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom-alpha:2.2.0-alpha")
+        mavenBom("io.opentelemetry:opentelemetry-bom:1.39.0")
+        mavenBom("io.opentelemetry:opentelemetry-bom-alpha:1.39.0-alpha")
+        mavenBom("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.4.0")
     }
 }
 
